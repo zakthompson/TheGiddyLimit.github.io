@@ -260,7 +260,7 @@ const ShapedConverter = (function () {
 					text: fixLinks(match[2])
 				});
 			} else {
-				last(result).text = last(result).text + '\n' + entry;
+				result.last().text = result.last().text + '\n' + entry;
 			}
 			return result;
 		}, [action]);
@@ -486,7 +486,7 @@ const ShapedConverter = (function () {
 			}
 			if (legendaryGroup[monster.legendaryGroup].regionalEffects) {
 				output.regionalEffects = legendaryGroup[monster.legendaryGroup].regionalEffects.filter(isObject)[0].items.map(fixLinks);
-				output.regionalEffectsFade = fixLinks(last(legendaryGroup[monster.legendaryGroup].regionalEffects.filter(isString)));
+				output.regionalEffectsFade = fixLinks(legendaryGroup[monster.legendaryGroup].regionalEffects.filter(isString).last());
 			}
 		}
 
@@ -541,10 +541,10 @@ const ShapedConverter = (function () {
 		}
 
 		let entriesToProc = entries;
-		if (isString(last(entries)) && (last(entries).match(/damage increases(?: by (?:{[^}]+}|one die))? when you reach/) || last(entries).match(/creates more than one beam when you reach/))) {
+		if (isString(entries.last()) && (entries.last().match(/damage increases(?: by (?:{[^}]+}|one die))? when you reach/) || entries.last().match(/creates more than one beam when you reach/))) {
 			newSpell.description = '';
 			entriesToProc = entries.slice(0, -1);
-			newSpell.higherLevel = fixLinks(last(entries));
+			newSpell.higherLevel = fixLinks(entries.last());
 		}
 
 		newSpell.description = fixLinks(entriesToProc.map(entryMapper).join('\n'));
@@ -934,10 +934,6 @@ const ShapedConverter = (function () {
 			return obj.length === 0;
 		}
 		return Object.keys(obj).length === 0;
-	}
-
-	function last (arr) {
-		return arr[arr.length - 1];
 	}
 
 	function objMap (obj, func) {
