@@ -170,7 +170,7 @@ const ShapedConverter = (function () {
 	}
 
 	function processChallenge (cr) {
-		if (cr === 'Unknown') {
+		if (cr === 'Unknown' || cr == null) {
 			return 0;
 		}
 		const match = cr.match(/(\d+)(?:\s?\/\s?(\d+))?/);
