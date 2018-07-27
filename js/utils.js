@@ -2761,10 +2761,10 @@ DataUtil = {
 						DataUtil._loaded[toUrl] = data;
 						resolve(data, otherData);
 					} catch (e) {
-						reject(new Error('Could not parse JSON'));
+						reject(new Error('Could not parse JSON' + toUrl + e));
 					}
 				};
-				request.onerror = () => reject(new Error('Error during JSON request'));
+				request.onerror = (e) => reject(new Error('Error during JSON request: ' + e));
 				return request;
 			}
 		});
@@ -2772,11 +2772,11 @@ DataUtil = {
 
 	multiLoadJSON: function (toLoads, onEachLoadFunction, onFinalLoadFunction) {
 		if (!toLoads.length) onFinalLoadFunction([]);
-		Promise.all(toLoads.map(tl => this.loadJSON(tl.url))).then(datas => {
+		return Promise.all(toLoads.map(tl => this.loadJSON(tl.url))).then(datas => {
 			datas.forEach((data, i) => {
 				if (onEachLoadFunction) onEachLoadFunction(toLoads[i], data);
 			});
-			onFinalLoadFunction(datas);
+			return onFinalLoadFunction(datas);
 		});
 	},
 
