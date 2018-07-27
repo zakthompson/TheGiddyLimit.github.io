@@ -9,8 +9,6 @@
 	<title>Make Shaped JS - 5etools</title>
 
 	<link rel="stylesheet" href="css/bootstrap.css">
-	<link rel="stylesheet" href="css/jquery-ui.css">
-	<link rel="stylesheet" href="css/jquery-ui-slider-pips.css">
 	<link rel="stylesheet" href="css/style.css">
 	<link rel="icon" href="favicon.png">
 
@@ -19,17 +17,38 @@
 	<script type="text/javascript" src="js/navigation.js"></script>
 </head>
 <body>
-<ul id="sourceList">
+<header class="hidden-xs hidden-sm">
+	<div class="container">
 
-</ul>
-<textarea id="shapedJS"></textarea>
-<div class="btn btn-primary" id="copyJS" disabled="disabled">Copy JS</div>
+		<h1>Shaped JS Builder</h1>
+		<p>Select options, and hit Prepare.</p>
+	</div>
+</header>
+<nav class="container" id="navigation">
+	<ul class="nav nav-pills" id="navbar">
+	</ul>
+</nav>
+<main class="container bodyContent">
+	<div class="row">
+		<ul id="sourceList"></ul>
+	</div>
+	<div class="row">
+		<textarea id="shapedJS"></textarea>
+	</div>
+	<div class="row" id="buttons">
+		<div class="btn btn-primary" id="copyJS" disabled="disabled">Copy JS</div>
+	</div>
+</main>
+<footer class="container">
 
+</footer>    <!--5ETOOLS_SCRIPT_ANCHOR-->
 <script type="text/javascript" src="lib/jquery.js"></script>
-<script type="text/javascript" src="lib/jquery-ui.js"></script>
-<script type="text/javascript" src="lib/jquery-ui-slider-pip.js"></script>
 <script type="text/javascript" src="js/utils.js"></script>
+<script type="text/javascript" src="js/genutils.js"></script>
+<script type="text/javascript" src="js/omnidexer.js"></script>
 <script type="text/javascript" src="js/entryrender.js"></script>
-<script type="text/javascript" src="js/shapedconverter.js"></script>
+<script type="text/javascript" src="js/makeshaped.js"></script>
+<script type="text/javascript" src="lib/bootstrap.js"></script>
+<script type="text/javascript" src="lib/elasticlunr.js"></script>
 </body>
 </html>

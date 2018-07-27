@@ -30,7 +30,7 @@ const ShapedConverter = (function () {
 						inputs[key] = inputs[key] || {
 							name: Parser.SOURCE_JSON_TO_FULL[key],
 							key,
-							dependencies: key === 'PHB' ? ['SRD'] : ['Player\'s Handbook'],
+							dependencies: key === SRC_PHB ? ['SRD'] : ['Player\'s Handbook'],
 							classes: {}
 						};
 						inputs[key][sourceType.inputProp] = `${sourceType.dir}${sourceType.fileIndex[key]}`;
@@ -796,11 +796,11 @@ const ShapedConverter = (function () {
 				data.spells = data.spellInput.map(spell => {
 					spellLevels[spell.name] = spell.level;
 					spell.classes.fromClassList.forEach(clazz => {
-						if ((srdSpells.includes(spell.name) || srdSpells.includes(srdSpellRenames[spell.name])) && clazz.source === 'PHB') {
+						if ((srdSpells.includes(spell.name) || srdSpells.includes(srdSpellRenames[spell.name])) && clazz.source === SRC_PHB) {
 							return;
 						}
 						const nameToAdd = srdSpellRenames[spell.name] || spell.name;
-						const sourceObject = clazz.source === 'PHB' ? data : inputs[clazz.source];
+						const sourceObject = clazz.source === SRC_PHB ? data : inputs[clazz.source];
 						if (!sourceObject) {
 							return;
 						}
@@ -826,7 +826,7 @@ const ShapedConverter = (function () {
 							return;
 						}
 
-						const sourceObject = subclass.subclass.source === 'PHB' ? data : inputs[subclass.subclass.source];
+						const sourceObject = subclass.subclass.source === SRC_PHB ? data : inputs[subclass.subclass.source];
 						if (!sourceObject) {
 							return;
 						}
@@ -966,14 +966,14 @@ window.onload = function load () {
 		inputs.forEach(input => {
 			const disabled = input.name === 'Player\'s Handbook' ? 'disabled="disabled" ' : '';
 			const checked = input.name === 'Player\'s Handbook' ? 'checked="checked" ' : '';
-			$('#sourceList').append($(`<li><input type="checkbox" ${disabled}${checked}value="${input.key}"><span>${input.name}</span></li>`));
+			$('#sourceList').append($(`<li><label><input type="checkbox" ${disabled}${checked} value="${input.key}"><span>${input.name}</span></label></li>`));
 		});
 	}).catch(e => {
 		alert(e);
 	});
 
 	const $btnSaveFile = $(`<div class="btn btn-primary">Prepare JS</div>`);
-	$('body').append($btnSaveFile);
+	$(`#buttons`).append($btnSaveFile);
 	$btnSaveFile.on('click', () => {
 		const keys = $('input[type="checkbox"]:checked').map((i, e) => {
 			return e.value;
