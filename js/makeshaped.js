@@ -857,7 +857,7 @@ const ShapedConverter = (function () {
 					try {
 						return processSpell(spell, additionalSpellData);
 					} catch (e) {
-						throw new Error('Error with spell ' + spell.name + ' in file ' + data.name + ':' + e.toString() + e.stack);
+						throw new Error(`Error with spell ${spell.name} in file ${data.name}:${e.toString()}${e.stack}`);
 					}
 				})
 					.filter(s => !!s)
