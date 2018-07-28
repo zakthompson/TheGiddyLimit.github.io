@@ -1,27 +1,29 @@
+/* global $:false */
 'use strict';
 
-const ShapedConverter = (function () {
-	const SOURCE_INFO = {
-		bestiary: {
-			dir: 'data/bestiary/',
-			inputProp: 'monsterInput'
-		},
-		spells: {
-			dir: 'data/spells/',
-			inputProp: 'spellInput'
-		}
-	};
+class ShapedConverter {
+	static get SOURCE_INFO () {
+		return {
+			bestiary: {
+				dir: 'data/bestiary/',
+				inputProp: 'monsterInput'
+			},
+			spells: {
+				dir: 'data/spells/',
+				inputProp: 'spellInput'
+			}
+		};
+	}
 
-	let inputPromise;
-
-	function getInputs () {
-		if (!inputPromise) {
+	getInputs () {
+		const SOURCE_INFO = this.constructor.SOURCE_INFO;
+		if (!this._inputPromise) {
 			const sources = [
 				{url: `${SOURCE_INFO.bestiary.dir}index.json`},
 				{url: `${SOURCE_INFO.spells.dir}index.json`}
 			];
 
-			inputPromise = DataUtil.multiLoadJSON(sources, null, data => {
+			this._inputPromise = DataUtil.multiLoadJSON(sources, null, data => {
 				SOURCE_INFO.bestiary.fileIndex = data[0];
 				SOURCE_INFO.spells.fileIndex = data[1];
 
@@ -39,11 +41,12 @@ const ShapedConverter = (function () {
 				}, {});
 			});
 		}
-		return inputPromise;
+		return this._inputPromise;
 	}
 
-	function generateShapedJS (sourceKeys) {
-		return getInputs().then(inputs => {
+	generateShapedJS (sourceKeys) {
+		const SOURCE_INFO = this.constructor.SOURCE_INFO;
+		return this.getInputs().then(inputs => {
 			const sources = [
 				{url: `${SOURCE_INFO.bestiary.dir}srd-monsters.json`},
 				{url: `${SOURCE_INFO.spells.dir}srd-spells.json`},
@@ -87,7 +90,7 @@ const ShapedConverter = (function () {
 							inputs[key].monsterInput = dataItem.monster;
 						}
 					});
-					convertData(inputs, srdMonsters, srdSpells, srdSpellRenames, additionalSpellData, legendaryGroup);
+					this.constructor.convertData(inputs, srdMonsters, srdSpells, srdSpellRenames, additionalSpellData, legendaryGroup);
 				});
 			} else {
 				jsonPromise = Promise.resolve();
@@ -96,24 +99,26 @@ const ShapedConverter = (function () {
 			return jsonPromise.then(() => {
 				const lines = sourceKeys
 					.map(key => {
-						return `ShapedScripts.addEntities(${JSON.stringify(inputs[key].converted, serialiseFixer)})`;
+						return `ShapedScripts.addEntities(${JSON.stringify(inputs[key].converted, this.constructor.serialiseFixer)})`;
 					}).join('\n');
 				return `on('ready', function() {\n${lines}\n});`
 			})
 		});
 	}
 
-	function makeSpellList (spellArray) {
-		return `${spellArray.map(fixLinks).join(', ')}`;
+	static makeSpellList (spellArray) {
+		return `${spellArray.map(this.fixLinks).join(', ')}`;
 	}
 
-	const INNATE_SPELLCASTING_RECHARGES = {
-		daily: 'day',
-		rest: 'rest',
-		weekly: 'week'
-	};
+	static get INNATE_SPELLCASTING_RECHARGES () {
+		return {
+			daily: 'day',
+			rest: 'rest',
+			weekly: 'week'
+		};
+	}
 
-	function innateSpellProc (spellcasting) {
+	static innateSpellProc (spellcasting) {
 		return Object.keys(spellcasting)
 			.filter(k => ![
 				'headerEntries',
@@ -124,41 +129,41 @@ const ShapedConverter = (function () {
 			.map(useInfo => {
 				const spellDetails = spellcasting[useInfo];
 				if (useInfo === 'will') {
-					return `At will: ${makeSpellList(spellDetails)}`;
+					return `At will: ${this.makeSpellList(spellDetails)}`;
 				}
 				if (useInfo === 'constant') {
-					return `Constant: ${makeSpellList(spellDetails)}`;
+					return `Constant: ${this.makeSpellList(spellDetails)}`;
 				}
-				if (INNATE_SPELLCASTING_RECHARGES[useInfo]) {
-					const rechargeString = INNATE_SPELLCASTING_RECHARGES[useInfo];
+				if (this.INNATE_SPELLCASTING_RECHARGES[useInfo]) {
+					const rechargeString = this.INNATE_SPELLCASTING_RECHARGES[useInfo];
 					return Object.keys(spellDetails).map(usesPerDay => {
 						const spellList = spellDetails[usesPerDay];
 						const howMany = usesPerDay.slice(0, 1);
 						const each = usesPerDay.endsWith('e') && spellList.length > 1;
-						return `${howMany}/${rechargeString}${each ? ' each' : ''}: ${makeSpellList(spellList)}`;
+						return `${howMany}/${rechargeString}${each ? ' each' : ''}: ${this.makeSpellList(spellList)}`;
 					}).sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
 				} else if (useInfo === 'spells') {
-					return processLeveledSpells(spellDetails);
+					return this.processLeveledSpells(spellDetails);
 				} else {
 					throw new Error('Unrecognised spellUseInfo ' + useInfo);
 				}
 			})
-			.reduce(flattener, []);
+			.reduce(this.flattener, []);
 	}
 
-	function processLeveledSpells (spellObj) {
+	static processLeveledSpells (spellObj) {
 		return Object.keys(spellObj).map(levelString => {
 			const level = parseInt(levelString, 10);
 			const levelInfo = spellObj[level];
-			return `${Parser.spLevelToFullLevelText(level)} (${slotString(levelInfo.slots)}): ${makeSpellList(levelInfo.spells)}`;
+			return `${Parser.spLevelToFullLevelText(level)} (${this.slotString(levelInfo.slots)}): ${this.makeSpellList(levelInfo.spells)}`;
 		});
 	}
 
-	function normalSpellProc (spellcasting) {
-		return processLeveledSpells(spellcasting.spells);
+	static normalSpellProc (spellcasting) {
+		return this.processLeveledSpells(spellcasting.spells);
 	}
 
-	function slotString (slots) {
+	static slotString (slots) {
 		switch (slots) {
 			case undefined:
 				return 'at will';
@@ -169,7 +174,7 @@ const ShapedConverter = (function () {
 		}
 	}
 
-	function processChallenge (cr) {
+	static processChallenge (cr) {
 		if (cr === 'Unknown' || cr == null) {
 			return 0;
 		}
@@ -183,7 +188,7 @@ const ShapedConverter = (function () {
 		return parseInt(match[1], 10);
 	}
 
-	function fixLinks (string) {
+	static fixLinks (string) {
 		return string
 			.replace(/{@filter ([^|]+)[^}]+}/g, '$1')
 			.replace(/{@hit (\d+)}/g, '+$1')
@@ -195,7 +200,7 @@ const ShapedConverter = (function () {
 			.replace(/(d\d+)([+-])(\d)/g, '$1 $2 $3');
 	}
 
-	function makeTraitAction (name) {
+	static makeTraitAction (name) {
 		const nameMatch = name.match(/([^(]+)(?:\(([^)]+)\))?/);
 		if (nameMatch && nameMatch[2]) {
 			const rechargeMatch = nameMatch[2].match(/^(?:(.*), )?(\d(?: minute[s]?)?\/(?:Day|Turn|Rest|Hour|Week|Long Rest|Short Rest)|Recharge \d(?:\u20136)?|Recharge[s]? [^),]+)(?:, ([^)]+))?$/i);
@@ -218,11 +223,11 @@ const ShapedConverter = (function () {
 		};
 	}
 
-	function processStatblockSection (section) {
+	static processStatblockSection (section) {
 		return section.map(trait => {
-			const newTrait = makeTraitAction(trait.name);
-			if (SPECIAL_TRAITS_ACTIONS[newTrait.name]) {
-				return SPECIAL_TRAITS_ACTIONS[newTrait.name](newTrait, trait.entries);
+			const newTrait = this.makeTraitAction(trait.name);
+			if (this.SPECIAL_TRAITS_ACTIONS[newTrait.name]) {
+				return this.SPECIAL_TRAITS_ACTIONS[newTrait.name](newTrait, trait.entries);
 			}
 
 			const expandedList = trait.entries.map(entry => {
@@ -231,33 +236,33 @@ const ShapedConverter = (function () {
 						if (isObject(entry.items[0])) {
 							return entry.items.map(item => ({
 								name: item.name.replace(/^([^.]+)\.$/, '$1'),
-								text: fixLinks(item.entry)
+								text: this.fixLinks(item.entry)
 							}));
 						} else {
-							return entry.items.map(item => `• ${fixLinks(item)}`).join('\n');
+							return entry.items.map(item => `• ${this.fixLinks(item)}`).join('\n');
 						}
 					} else if (entry.entries) {
 						const joiner = entry.type === 'inline' ? '' : '\n';
 						return entry.entries.map(subEntry => isString(subEntry) ? subEntry : subEntry.text).join(joiner);
 					}
 				} else {
-					return fixLinks(entry);
+					return this.fixLinks(entry);
 				}
-			}).reduce(flattener, []);
+			}).reduce(this.flattener, []);
 
 			newTrait.text = expandedList.filter(isString).join('\n');
 			return [newTrait].concat(expandedList.filter(isObject));
-		}).reduce(flattener, []);
+		}).reduce(this.flattener, []);
 	}
 
-	function processSpecialList (action, entries) {
-		action.text = fixLinks(entries[0]);
+	static processSpecialList (action, entries) {
+		action.text = this.fixLinks(entries[0]);
 		return entries.slice(1).reduce((result, entry) => {
 			const match = entry.match(/^(?:\d+\. )?([A-Z][a-z]+(?: [A-Z][a-z]+)*). (.*)$/);
 			if (match) {
 				result.push({
 					name: match[1],
-					text: fixLinks(match[2])
+					text: this.fixLinks(match[2])
 				});
 			} else {
 				result.last().text = result.last().text + '\n' + entry;
@@ -266,15 +271,17 @@ const ShapedConverter = (function () {
 		}, [action]);
 	}
 
-	const SPECIAL_TRAITS_ACTIONS = {
-		Roar: processSpecialList,
-		'Eye Rays': processSpecialList,
-		'Eye Ray': processSpecialList,
-		'Gaze': processSpecialList,
-		'Call the Blood': processSpecialList
-	};
+	static get SPECIAL_TRAITS_ACTIONS () {
+		return {
+			Roar: this.processSpecialList.bind(this),
+			'Eye Rays': this.processSpecialList.bind(this),
+			'Eye Ray': this.processSpecialList.bind(this),
+			'Gaze': this.processSpecialList.bind(this),
+			'Call the Blood': this.processSpecialList.bind(this)
+		};
+	}
 
-	function processHP (monster, output) {
+	static processHP (monster, output) {
 		if (monster.hp.special) {
 			const match = monster.hp.special.match(/^(\d+(?:\s\(\d+d\d+(?:[+-]\d+)\)))(.*)/);
 			if (match) {
@@ -287,7 +294,7 @@ const ShapedConverter = (function () {
 		}
 	}
 
-	function processAC (ac) {
+	static processAC (ac) {
 		function appendToList (string, newItem) {
 			return `${string}${string.length ? ', ' : ''}${newItem}`;
 		}
@@ -298,29 +305,29 @@ const ShapedConverter = (function () {
 			}
 
 			if (acEntry.condition && acEntry.braces) {
-				return `${acString} (${acEntry.ac} ${fixLinks(acEntry.condition)})`;
+				return `${acString} (${acEntry.ac} ${this.fixLinks(acEntry.condition)})`;
 			}
 
 			let entryString = `${acEntry.ac}`;
 			if (acEntry.from) {
-				entryString += ` (${acEntry.from.map(fixLinks).join(', ')})`;
+				entryString += ` (${acEntry.from.map(this.fixLinks).join(', ')})`;
 			}
 			if (acEntry.condition) {
-				entryString += ` ${fixLinks(acEntry.condition)}`;
+				entryString += ` ${this.fixLinks(acEntry.condition)}`;
 			}
 
 			return appendToList(acString, entryString);
 		}, '');
 	}
 
-	function processSkills (monster, output) {
+	static processSkills (monster, output) {
 		output.skills = Object.keys(monster.skill)
 			.filter(name => name !== 'other')
 			.map(name => `${name.toTitleCase()} ${monster.skill[name]}`)
 			.join(', ');
 
 		if (monster.skill.other) {
-			const additionalSkills = objMap(monster.skill.other[0].oneOf, (val, name) => `${name.toTitleCase()} ${val}`).join(', ');
+			const additionalSkills = this.objMap(monster.skill.other[0].oneOf, (val, name) => `${name.toTitleCase()} ${val}`).join(', ');
 			(monster.trait = monster.trait || []).push({
 				name: 'Additional Skill Proficiencies',
 				entries: [
@@ -330,14 +337,14 @@ const ShapedConverter = (function () {
 		}
 	}
 
-	function processMonster (monster, legendaryGroup) {
+	static processMonster (monster, legendaryGroup) {
 		const output = {};
 		output.name = monster.name;
 		output.size = Parser.sizeAbvToFull(monster.size);
 		output.type = Parser.monTypeToFullObj(monster.type).asText.replace(/^[a-z]/, (char) => char.toLocaleUpperCase());
 		output.alignment = Parser.alignmentListToFull(monster.alignment).toLowerCase();
-		output.AC = processAC(monster.ac);
-		processHP(monster, output);
+		output.AC = this.processAC(monster.ac);
+		this.processHP(monster, output);
 		output.speed = Parser.getSpeedString(monster);
 		output.strength = monster.str;
 		output.dexterity = monster.dex;
@@ -346,10 +353,10 @@ const ShapedConverter = (function () {
 		output.wisdom = monster.wis;
 		output.charisma = monster.cha;
 		if (monster.save) {
-			output.savingThrows = objMap(monster.save, (saveVal, saveName) => `${saveName.toTitleCase()} ${saveVal}`).join(', ');
+			output.savingThrows = this.objMap(monster.save, (saveVal, saveName) => `${saveName.toTitleCase()} ${saveVal}`).join(', ');
 		}
 		if (monster.skill) {
-			processSkills(monster, output);
+			this.processSkills(monster, output);
 		}
 		if (monster.vulnerable) {
 			output.damageVulnerabilities = Parser.monImmResToFull(monster.vulnerable);
@@ -365,24 +372,24 @@ const ShapedConverter = (function () {
 		}
 		output.senses = monster.senses;
 		output.languages = monster.languages;
-		output.challenge = processChallenge(monster.cr.cr || monster.cr);
+		output.challenge = this.processChallenge(monster.cr.cr || monster.cr);
 
 		const traits = [];
 		const actions = [];
 		const reactions = [];
 
 		if (monster.trait) {
-			traits.push.apply(traits, processStatblockSection(monster.trait));
+			traits.push.apply(traits, this.processStatblockSection(monster.trait));
 		}
 		if (monster.spellcasting) {
 			monster.spellcasting.forEach(spellcasting => {
-				const spellProc = spellcasting.name.startsWith('Innate') ? innateSpellProc : normalSpellProc;
-				const spellLines = spellProc(spellcasting);
-				spellLines.unshift(fixLinks(spellcasting.headerEntries[0]));
+				const spellProc = spellcasting.name.startsWith('Innate') ? this.innateSpellProc : this.normalSpellProc;
+				const spellLines = spellProc.bind(this)(spellcasting);
+				spellLines.unshift(this.fixLinks(spellcasting.headerEntries[0]));
 				if (spellcasting.footerEntries) {
 					spellLines.push.apply(spellLines, spellcasting.footerEntries);
 				}
-				const trait = makeTraitAction(spellcasting.name);
+				const trait = this.makeTraitAction(spellcasting.name);
 				trait.text = spellLines.join('\n');
 
 				traits.push(trait);
@@ -390,31 +397,31 @@ const ShapedConverter = (function () {
 		}
 
 		if (monster.action) {
-			actions.push.apply(actions, processStatblockSection(monster.action));
+			actions.push.apply(actions, this.processStatblockSection(monster.action));
 		}
 		if (monster.reaction) {
-			reactions.push.apply(reactions, processStatblockSection(monster.reaction));
+			reactions.push.apply(reactions, this.processStatblockSection(monster.reaction));
 		}
 
-		function addVariant (name, text, output, forceActions) {
-			const newTraitAction = makeTraitAction(name);
+		const addVariant = (name, text, output, forceActions) => {
+			const newTraitAction = this.makeTraitAction(name);
 			newTraitAction.name = 'Variant: ' + newTraitAction.name;
 			const isAttack = text.match(/{@hit|Attack:/);
-			newTraitAction.text = fixLinks(text);
+			newTraitAction.text = this.fixLinks(text);
 			if ((newTraitAction.recharge && !text.match(/bonus action/)) || forceActions || isAttack) {
 				actions.push(newTraitAction);
 			} else {
 				traits.push(newTraitAction);
 			}
-		}
+		};
 
-		function entryStringifier (entry, omitName) {
+		const entryStringifier = (entry, omitName) => {
 			if (isString(entry)) {
 				return entry;
 			}
 			const entryText = `${entry.entries.map(subEntry => entryStringifier(subEntry)).join('\n')}`;
 			return omitName ? entryText : `${entry.name}. ${entryText}`;
-		}
+		};
 
 		if (monster.variant && monster.name !== 'Shadow Mastiff') {
 			monster.variant.forEach(variant => {
@@ -470,7 +477,7 @@ const ShapedConverter = (function () {
 					result.text = '';
 					result.cost = 1;
 				}
-				result.text = fixLinks(legendary.entries.join('\n'));
+				result.text = this.fixLinks(legendary.entries.join('\n'));
 				return result;
 			}).filter(l => !!l);
 		}
@@ -479,14 +486,14 @@ const ShapedConverter = (function () {
 			const lairs = legendaryGroup[monster.legendaryGroup].lairActions;
 			if (lairs) {
 				if (lairs.every(isString)) {
-					output.lairActions = lairs.map(fixLinks);
+					output.lairActions = lairs.map(this.fixLinks);
 				} else {
-					output.lairActions = lairs.filter(isObject)[0].items.map(fixLinks);
+					output.lairActions = lairs.filter(isObject)[0].items.map(this.fixLinks);
 				}
 			}
 			if (legendaryGroup[monster.legendaryGroup].regionalEffects) {
-				output.regionalEffects = legendaryGroup[monster.legendaryGroup].regionalEffects.filter(isObject)[0].items.map(fixLinks);
-				output.regionalEffectsFade = fixLinks(legendaryGroup[monster.legendaryGroup].regionalEffects.filter(isString).last());
+				output.regionalEffects = legendaryGroup[monster.legendaryGroup].regionalEffects.filter(isObject)[0].items.map(this.fixLinks);
+				output.regionalEffectsFade = this.fixLinks(legendaryGroup[monster.legendaryGroup].regionalEffects.filter(isString).last());
 			}
 		}
 
@@ -497,23 +504,23 @@ const ShapedConverter = (function () {
 		return output;
 	}
 
-	function padInteger (num) {
+	static padInteger (num) {
 		if (num < 10 && num >= 0) {
 			return `0${num}`;
 		}
 		return `${num}`;
 	}
 
-	function processSpellEntries (entries, newSpell) {
-		function cellProc (cell) {
+	static processSpellEntries (entries, newSpell) {
+		const cellProc = cell => {
 			if (isString(cell)) {
 				return cell;
 			} else if (cell.roll) {
-				return cell.roll.exact || `${padInteger(cell.roll.min)}\\u2013${padInteger(cell.roll.max)}`;
+				return cell.roll.exact || `${this.padInteger(cell.roll.min)}\\u2013${this.padInteger(cell.roll.max)}`;
 			}
-		}
+		};
 
-		function entryMapper (entry) {
+		const entryMapper = entry => {
 			if (isString(entry)) {
 				return entry;
 			} else if (entry.type === 'table') {
@@ -538,19 +545,19 @@ const ShapedConverter = (function () {
 			} else {
 				return `***${entry.name}.*** ${entry.entries.map(entryMapper).join('\n')}`;
 			}
-		}
+		};
 
 		let entriesToProc = entries;
 		if (isString(entries.last()) && (entries.last().match(/damage increases(?: by (?:{[^}]+}|one die))? when you reach/) || entries.last().match(/creates more than one beam when you reach/))) {
 			newSpell.description = '';
 			entriesToProc = entries.slice(0, -1);
-			newSpell.higherLevel = fixLinks(entries.last());
+			newSpell.higherLevel = this.fixLinks(entries.last());
 		}
 
-		newSpell.description = fixLinks(entriesToProc.map(entryMapper).join('\n'));
+		newSpell.description = this.fixLinks(entriesToProc.map(entryMapper).join('\n'));
 	}
 
-	function addExtraSpellData (newSpell, data) {
+	static addExtraSpellData (newSpell, data) {
 		if (data['Spell Attack']) {
 			newSpell.attack = {
 				type: data['Spell Attack'].toLocaleLowerCase()
@@ -566,15 +573,15 @@ const ShapedConverter = (function () {
 			}
 		}
 
-		const secondOutput = (data.primaryDamageCondition === data.secondaryDamageCondition) ? SECONDARY_DAMAGE_OUTPUTS_NAMES : PRIMARY_DAMAGE_OUTPUT_NAMES;
+		const secondOutput = (data.primaryDamageCondition === data.secondaryDamageCondition) ? this.SECONDARY_DAMAGE_OUTPUTS_NAMES : this.PRIMARY_DAMAGE_OUTPUT_NAMES;
 
 		[
 			[
-				PRIMARY_DAMAGE_PROP_NAMES,
-				PRIMARY_DAMAGE_OUTPUT_NAMES
+				this.PRIMARY_DAMAGE_PROP_NAMES,
+				this.PRIMARY_DAMAGE_OUTPUT_NAMES
 			],
 			[
-				SECONDARY_DAMAGE_PROP_NAMES,
+				this.SECONDARY_DAMAGE_PROP_NAMES,
 				secondOutput
 			]
 		].forEach(propNamesArray => {
@@ -583,14 +590,14 @@ const ShapedConverter = (function () {
 			if (data[propNames.damage] && data[propNames.damageType] !== 'Effect') {
 				switch (data[propNames.condition]) {
 					case 'save':
-						processDamageInfo(data, newSpell.save, propNames, outputNames);
+						this.processDamageInfo(data, newSpell.save, propNames, outputNames);
 						break;
 					case 'attack':
-						processDamageInfo(data, newSpell.attack, propNames, outputNames);
+						this.processDamageInfo(data, newSpell.attack, propNames, outputNames);
 						break;
 					case 'auto':
 						newSpell.damage = newSpell.damage || {};
-						processDamageInfo(data, newSpell.damage, propNames, outputNames);
+						this.processDamageInfo(data, newSpell.damage, propNames, outputNames);
 						break;
 					default:
 						throw new Error('Missing ' + propNames.condition + ' for spell ' + newSpell.name);
@@ -626,42 +633,49 @@ const ShapedConverter = (function () {
 		}
 	}
 
-	const PRIMARY_DAMAGE_PROP_NAMES = {
-		damage: 'Damage',
-		damageProgression: 'Damage Progression',
-		damageType: 'Damage Type',
-		higherLevel: 'Higher Spell Slot Dice',
-		castingStat: 'Add Casting Modifier',
-		condition: 'primaryDamageCondition'
-	};
+	static get PRIMARY_DAMAGE_PROP_NAMES () {
+		return {
+			damage: 'Damage',
+			damageProgression: 'Damage Progression',
+			damageType: 'Damage Type',
+			higherLevel: 'Higher Spell Slot Dice',
+			castingStat: 'Add Casting Modifier',
+			condition: 'primaryDamageCondition'
+		};
+	}
 
-	const PRIMARY_DAMAGE_OUTPUT_NAMES = {
-		outputDamage: 'damage',
-		outputDamageBonus: 'damageBonus',
-		outputDamageType: 'damageType',
-		outputHigherLevel: 'higherLevelDice',
-		outputCastingStat: 'castingStat'
-	};
+	static get PRIMARY_DAMAGE_OUTPUT_NAMES () {
+		return {
+			outputDamage: 'damage',
+			outputDamageBonus: 'damageBonus',
+			outputDamageType: 'damageType',
+			outputHigherLevel: 'higherLevelDice',
+			outputCastingStat: 'castingStat'
+		};
+	}
 
-	const SECONDARY_DAMAGE_PROP_NAMES = {
-		damage: 'Secondary Damage',
-		damageType: 'Secondary Damage Type',
-		damageProgression: 'Secondary Damage Progression',
-		higherLevel: 'Secondary Higher Spell Slot Dice',
-		castingStat: 'Secondary Add Casting Modifier',
-		condition: 'secondaryDamageCondition'
+	static get SECONDARY_DAMAGE_PROP_NAMES () {
+		return {
+			damage: 'Secondary Damage',
+			damageType: 'Secondary Damage Type',
+			damageProgression: 'Secondary Damage Progression',
+			higherLevel: 'Secondary Higher Spell Slot Dice',
+			castingStat: 'Secondary Add Casting Modifier',
+			condition: 'secondaryDamageCondition'
+		};
+	}
 
-	};
+	static get SECONDARY_DAMAGE_OUTPUTS_NAMES () {
+		return {
+			outputDamage: 'secondaryDamage',
+			outputDamageBonus: 'secondaryDamageBonus',
+			outputDamageType: 'secondaryDamageType',
+			outputHigherLevel: 'higherLevelSecondaryDice',
+			outputCastingStat: 'secondaryCastingStat'
+		};
+	}
 
-	const SECONDARY_DAMAGE_OUTPUTS_NAMES = {
-		outputDamage: 'secondaryDamage',
-		outputDamageBonus: 'secondaryDamageBonus',
-		outputDamageType: 'secondaryDamageType',
-		outputHigherLevel: 'higherLevelSecondaryDice',
-		outputCastingStat: 'secondaryCastingStat'
-	};
-
-	function processDamageInfo (data, outputObject, propNames, outputNames) {
+	static processDamageInfo (data, outputObject, propNames, outputNames) {
 		if (data[propNames.damage]) {
 			if (data[propNames.damageProgression]) {
 				if (data[propNames.damageProgression] === 'Cantrip Dice') {
@@ -697,13 +711,13 @@ const ShapedConverter = (function () {
 		}
 	}
 
-	function processHigherLevel (entriesHigherLevel, newSpell) {
+	static processHigherLevel (entriesHigherLevel, newSpell) {
 		if (entriesHigherLevel) {
-			newSpell.higherLevel = fixLinks(entriesHigherLevel[0].entries.join('\n'));
+			newSpell.higherLevel = this.fixLinks(entriesHigherLevel[0].entries.join('\n'));
 		}
 	}
 
-	function processSpell (spell, additionalSpellData) {
+	static processSpell (spell, additionalSpellData) {
 		const newSpell = {
 			name: spell.name,
 			level: spell.level,
@@ -721,14 +735,14 @@ const ShapedConverter = (function () {
 			duration: Parser.spDurationToFull(spell.duration)
 		});
 
-		processSpellEntries(spell.entries, newSpell);
-		processHigherLevel(spell.entriesHigherLevel, newSpell);
-		addExtraSpellData(newSpell, additionalSpellData[spell.name]);
+		this.processSpellEntries(spell.entries, newSpell);
+		this.processHigherLevel(spell.entriesHigherLevel, newSpell);
+		this.addExtraSpellData(newSpell, additionalSpellData[spell.name]);
 
 		return newSpell;
 	}
 
-	function serialiseFixer (key, value) {
+	static serialiseFixer (key, value) {
 		if (isString(value)) {
 			return value
 				.replace(/'/g, '’')
@@ -758,7 +772,7 @@ const ShapedConverter = (function () {
 		return value;
 	}
 
-	function convertData (inputs, srdMonsters, srdSpells, srdSpellRenames, additionalSpellData, legendaryGroup) {
+	static convertData (inputs, srdMonsters, srdSpells, srdSpellRenames, additionalSpellData, legendaryGroup) {
 		const spellLevels = {};
 		const toProcess = Object.values(inputs)
 			.filter(input => !input.converted && (isObject(input.monsterInput) || isObject(input.spellInput)));
@@ -770,7 +784,7 @@ const ShapedConverter = (function () {
 				}
 				data.monsters = data.monsterInput.map(monster => {
 					try {
-						const converted = processMonster(monster, legendaryGroup);
+						const converted = this.processMonster(monster, legendaryGroup);
 						if (srdMonsters.includes(monster.name)) {
 							const pruned = (({name, lairActions, regionalEffects, regionalEffectsFade}) => ({
 								name,
@@ -855,7 +869,7 @@ const ShapedConverter = (function () {
 						};
 					}
 					try {
-						return processSpell(spell, additionalSpellData);
+						return this.processSpell(spell, additionalSpellData);
 					} catch (e) {
 						throw new Error(`Error with spell ${spell.name} in file ${data.name}:${e.toString()}${e.stack}`);
 					}
@@ -904,7 +918,7 @@ const ShapedConverter = (function () {
 		});
 	}
 
-	function flattener (result, item) {
+	static flattener (result, item) {
 		if (Array.isArray(item)) {
 			result.push(...item);
 		} else {
@@ -913,43 +927,16 @@ const ShapedConverter = (function () {
 		return result;
 	}
 
-	function isObject (obj) {
-		const type = typeof obj;
-		return (type === 'function' || type === 'object') && !!obj;
-	}
-
-	function isString (str) {
-		return typeof str === 'string';
-	}
-
-	function isNumber (obj) {
-		return toString.call(obj) === '[object Number]';
-	}
-
-	function isEmpty (obj) {
-		if (obj == null) {
-			return true;
-		}
-		if (Array.isArray(obj) || isString(obj)) {
-			return obj.length === 0;
-		}
-		return Object.keys(obj).length === 0;
-	}
-
-	function objMap (obj, func) {
+	static objMap (obj, func) {
 		return Object.keys(obj).map((key) => {
 			return func(obj[key], key, obj);
 		})
 	}
-
-	return {
-		getInputs,
-		generateShapedJS
-	}
-}());
+}
 
 window.onload = function load () {
-	ShapedConverter.getInputs().then((inputs) => {
+	window.shapedConverter = new ShapedConverter();
+	shapedConverter.getInputs().then((inputs) => {
 		return Object.values(inputs).sort((a, b) => {
 			if (a.name === 'Player\'s Handbook') {
 				return -1;
@@ -974,7 +961,7 @@ window.onload = function load () {
 		const keys = $('input[type="checkbox"]:checked').map((i, e) => {
 			return e.value;
 		}).get();
-		ShapedConverter.generateShapedJS(keys)
+		shapedConverter.generateShapedJS(keys)
 			.then(js => {
 				$('#shapedJS').val(js);
 				$('#copyJS').removeAttr('disabled');

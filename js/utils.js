@@ -4191,3 +4191,26 @@ if (!IS_ROLL20 && typeof window !== "undefined") {
 		/* eslint-enable */
 	});
 }
+
+function isObject (obj) {
+	const type = typeof obj;
+	return (type === 'function' || type === 'object') && !!obj;
+}
+
+function isString (str) {
+	return typeof str === 'string';
+}
+
+function isNumber (obj) {
+	return toString.call(obj) === '[object Number]';
+}
+
+function isEmpty (obj) {
+	if (obj == null) {
+		return true;
+	}
+	if (Array.isArray(obj) || isString(obj)) {
+		return obj.length === 0;
+	}
+	return Object.keys(obj).length === 0;
+}
