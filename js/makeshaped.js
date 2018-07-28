@@ -77,6 +77,7 @@ class ShapedConverter {
 							}
 						})
 					}
+					BrewUtil.makeBrewButton("manage-brew");
 					return inputs;
 				});
 			});
